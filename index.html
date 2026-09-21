@@ -30,7 +30,7 @@
     --mark: #fff3c4;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       color-scheme: dark;
       --page: #0d0d0d;
       --surface: #1a1a19;
@@ -50,6 +50,13 @@
       --code-bg: #232322;
       --mark: #3d3510;
     }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --accent: #3987e5; --accent-soft: #184f95; --deemph: #4a4a47; --orange: #d95926;
+    --good: #0ca30c; --warn: #fab219; --crit: #e66767; --code-bg: #232322; --mark: #3d3510;
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
@@ -127,7 +134,7 @@
   .pill.crit { color: var(--crit); border-color: color-mix(in srgb, var(--crit) 40%, transparent); }
   .pill.vendor { color: var(--muted); }
 
-  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin: 18px 0 22px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin: 18px 0 22px; }
   .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 18px 0 22px; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
   .card h3 { margin: 0 0 6px; font-size: 18px; }
@@ -143,7 +150,7 @@
   .viz { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px 12px; margin: 16px 0; position: relative; }
   .viz .vt { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
   .viz .vs { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
-  .viz svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .viz svg { max-width: 100%; height: auto; display: block; overflow: visible; }
   .viz .bar { transition: opacity .12s; }
   .viz .row:hover .bar, .viz .row:focus .bar { opacity: .85; }
   .viz .lbl { font-size: 13px; fill: var(--ink-2); }
@@ -178,6 +185,7 @@
   .refs ol { padding-left: 26px; }
   .refs li { margin-bottom: 8px; color: var(--ink-2); }
   sup.r a { text-decoration: none; font-size: 11px; color: var(--accent); font-weight: 600; }
+  sup.r a + a::before { content: ","; color: var(--muted); margin-right: 1px; }
   .verdict { font-size: 19px; }
   mark { background: var(--mark); color: inherit; padding: 0 3px; border-radius: 3px; }
   footer { border-top: 1px solid var(--border); padding: 30px 0 0; color: var(--muted); font-size: 13px; }
@@ -668,13 +676,28 @@ claude plugin install typesafe@typesafe-ai</code></pre>
 
 <script>
 (function () {
+  // Theme override for testing/sharing: ?theme=light|dark
+  var th = new URLSearchParams(location.search).get('theme');
+  if (th === 'light' || th === 'dark') document.documentElement.setAttribute('data-theme', th);
+
   // Horizontal bar chart, "emphasis" form: highlighted rows in accent, others in de-emphasis gray.
   // Thin marks, 4px rounded data-end, 2px gap, direct value labels, hover tooltip, table view.
+  // Width follows the container (so SVG text stays at CSS px); narrow containers stack label above bar.
+  var charts = [];
   function hbar(id, cfg) {
     var host = document.getElementById(id);
     if (!host) return;
+    charts.push({ host: host, cfg: cfg });
+    render(host, cfg);
+  }
+  function render(host, cfg) {
     var data = cfg.data, n = data.length;
-    var W = 520, rowH = 30, gap = 2, padL = cfg.padL || 150, padR = 78, padT = 6, padB = 6;
+    var W = Math.max(260, host.clientWidth - 36);
+    var wantL = cfg.padL || 150;
+    var stacked = W < 480 || wantL > W * 0.42;
+    var gap = 2, padR = 72, padT = 6, padB = 6;
+    var padL = stacked ? 0 : wantL;
+    var rowH = stacked ? 46 : 30;
     var H = padT + n * rowH + padB;
     var max = Math.max.apply(null, data.map(function (d) { return d.value; }));
     var plotW = W - padL - padR;
@@ -683,7 +706,7 @@ claude plugin install typesafe@typesafe-ai</code></pre>
 
     var s = '<div class="vt">' + cfg.title + '</div><div class="vs">' + cfg.subtitle + '</div>';
     if (cfg.legend) s += '<div class="legend"><span class="a">' + cfg.legend[0] + '</span><span>' + cfg.legend[1] + '</span></div>';
-    s += '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + cfg.title + '">';
+    s += '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + cfg.title + '">';
     s += '<g class="grid">';
     for (var t = 1; t <= ticks; t++) {
       var gx = padL + plotW * t / ticks;
@@ -692,8 +715,9 @@ claude plugin install typesafe@typesafe-ai</code></pre>
     s += '</g>';
     s += '<line class="baseline" x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H - padB) + '"/>';
     data.forEach(function (d, i) {
-      var y = padT + i * rowH + gap;
-      var h = rowH - gap * 2;
+      var top = padT + i * rowH;
+      var y = stacked ? top + 22 : top + gap;
+      var h = stacked ? 18 : rowH - gap * 2;
       var w = Math.max(2, plotW * d.value / max);
       var color = d.emph ? 'var(--accent)' : 'var(--deemph)';
       var r = 4;
@@ -701,8 +725,12 @@ claude plugin install typesafe@typesafe-ai</code></pre>
       var path = 'M' + padL + ',' + y + ' h' + Math.max(0, w - r) + ' a' + r + ',' + r + ' 0 0 1 ' + r + ',' + r +
                  ' v' + (h - 2 * r) + ' a' + r + ',' + r + ' 0 0 1 -' + r + ',' + r + ' h-' + Math.max(0, w - r) + ' z';
       s += '<g class="row" tabindex="0" data-i="' + i + '">';
-      s += '<rect x="0" y="' + (y - gap) + '" width="' + W + '" height="' + rowH + '" fill="transparent"/>';
-      s += '<text class="lbl" x="' + (padL - 10) + '" y="' + (y + h / 2 + 4) + '" text-anchor="end">' + d.label + '</text>';
+      s += '<rect x="0" y="' + top + '" width="' + W + '" height="' + rowH + '" fill="transparent"/>';
+      if (stacked) {
+        s += '<text class="lbl" x="0" y="' + (top + 14) + '">' + d.label + '</text>';
+      } else {
+        s += '<text class="lbl" x="' + (padL - 10) + '" y="' + (y + h / 2 + 4) + '" text-anchor="end">' + d.label + '</text>';
+      }
       s += '<path class="bar" d="' + path + '" fill="' + color + '"/>';
       s += '<text class="val" x="' + (padL + w + 8) + '" y="' + (y + h / 2 + 4) + '">' + fmt(d.value) + '</text>';
       s += '</g>';
@@ -734,6 +762,11 @@ claude plugin install typesafe@typesafe-ai</code></pre>
       row.addEventListener('blur', function () { tip.style.display = 'none'; });
     });
   }
+  var rt;
+  window.addEventListener('resize', function () {
+    clearTimeout(rt);
+    rt = setTimeout(function () { charts.forEach(function (c) { render(c.host, c.cfg); }); }, 120);
+  });
 
   var usd = function (v) { return '$' + v.toFixed(4); };
   var sec = function (v) { return v.toFixed(v < 1 ? 2 : 1) + ' s'; };
