@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jev, o modelo que não escreve texto — estudo e análise</title>
+<meta name="description" content="Estudo sobre Jev, o System One Model da TypeSafe AI: o que é, como funciona, casos reais, onde é realmente relevante e onde não é.">
+<meta property="og:title" content="Jev, o modelo que não escreve texto">
+<meta property="og:description" content="O que é o Jev da TypeSafe AI, casos reais, números independentes e uma análise honesta de onde ele faz sentido.">
+<meta property="og:type" content="article">
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --accent: #2a78d6;
+    --accent-soft: #cde2fb;
+    --deemph: #c3c2b7;
+    --orange: #eb6834;
+    --good: #006300;
+    --warn: #b36b00;
+    --crit: #d03b3b;
+    --code-bg: #f1f0ec;
+    --mark: #fff3c4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255,255,255,0.10);
+      --accent: #3987e5;
+      --accent-soft: #184f95;
+      --deemph: #4a4a47;
+      --orange: #d95926;
+      --good: #0ca30c;
+      --warn: #fab219;
+      --crit: #e66767;
+      --code-bg: #232322;
+      --mark: #3d3510;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--ink);
+    background: var(--page);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:hover { text-decoration-thickness: 2px; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; line-height: 1.5; border: 1px solid var(--border); }
+  pre code { background: none; padding: 0; }
+
+  nav.top {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--page) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  nav.top .in {
+    max-width: 1040px; margin: 0 auto; padding: 10px 20px;
+    display: flex; gap: 6px 18px; align-items: center; flex-wrap: wrap;
+    font-size: 14px;
+  }
+  nav.top .brand { font-weight: 700; margin-right: auto; color: var(--ink); text-decoration: none; }
+  nav.top a.l { color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+  nav.top a.l:hover { color: var(--accent); }
+
+  main { max-width: 1040px; margin: 0 auto; padding: 0 20px 80px; }
+  .wrap { max-width: 760px; }
+
+  header.hero { padding: 64px 0 36px; border-bottom: 1px solid var(--border); }
+  .kicker { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  h1 { font-size: clamp(34px, 5vw, 54px); line-height: 1.08; margin: 10px 0 18px; letter-spacing: -0.02em; font-weight: 800; }
+  .lede { font-size: 21px; color: var(--ink-2); max-width: 760px; margin: 0 0 26px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 28px; }
+  .fact { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .fact .v { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; }
+  .fact .k { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  section { padding: 44px 0 8px; }
+  section + section { border-top: 1px solid var(--border); }
+  h2 { font-size: 30px; letter-spacing: -0.015em; margin: 0 0 6px; line-height: 1.15; }
+  h2 .n { color: var(--muted); font-weight: 500; margin-right: 8px; font-variant-numeric: tabular-nums; }
+  h3 { font-size: 20px; margin: 30px 0 8px; }
+  h4 { font-size: 16px; margin: 22px 0 6px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); }
+  p { margin: 0 0 16px; }
+  ul, ol { padding-left: 22px; margin: 0 0 16px; }
+  li { margin-bottom: 6px; }
+  .sub { color: var(--ink-2); font-size: 18px; margin-bottom: 22px; }
+
+  .callout { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; padding: 16px 20px; margin: 22px 0; }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout.crit { border-left-color: var(--crit); }
+  .callout.good { border-left-color: var(--good); }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .t { font-weight: 700; margin-bottom: 6px; }
+
+  table { border-collapse: collapse; width: 100%; margin: 14px 0 22px; font-size: 15px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  th { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); background: color-mix(in srgb, var(--surface) 80%, var(--page)); }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tablewrap { overflow-x: auto; }
+
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); vertical-align: middle; }
+  .pill.good { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, transparent); }
+  .pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
+  .pill.crit { color: var(--crit); border-color: color-mix(in srgb, var(--crit) 40%, transparent); }
+  .pill.vendor { color: var(--muted); }
+
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin: 18px 0 22px; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 18px 0 22px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .card h3 { margin: 0 0 6px; font-size: 18px; }
+  .card .meta { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .card p { font-size: 15.5px; margin-bottom: 10px; }
+  .card p:last-child { margin-bottom: 0; }
+  .card .stat { display: flex; gap: 18px; flex-wrap: wrap; margin: 10px 0 8px; }
+  .card .stat div { min-width: 90px; }
+  .card .stat .v { font-size: 22px; font-weight: 700; line-height: 1.1; }
+  .card .stat .k { font-size: 12px; color: var(--muted); }
+
+  /* charts */
+  .viz { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px 12px; margin: 16px 0; position: relative; }
+  .viz .vt { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+  .viz .vs { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .viz svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .viz .bar { transition: opacity .12s; }
+  .viz .row:hover .bar, .viz .row:focus .bar { opacity: .85; }
+  .viz .lbl { font-size: 13px; fill: var(--ink-2); }
+  .viz .val { font-size: 13px; fill: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .viz .grid line { stroke: var(--grid); stroke-width: 1; }
+  .viz .baseline { stroke: var(--axis); stroke-width: 1; }
+  .viz .row { outline: none; cursor: default; }
+  .viz .tip {
+    position: absolute; pointer-events: none; display: none;
+    background: var(--ink); color: var(--page); font-size: 13px; padding: 6px 9px; border-radius: 6px; white-space: nowrap; z-index: 3;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  .viz .foot { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .viz details { margin-top: 8px; font-size: 13px; }
+  .viz details summary { cursor: pointer; color: var(--ink-2); }
+  .viz details table { margin: 8px 0 0; font-size: 13px; }
+  .legend { display: flex; gap: 16px; font-size: 13px; color: var(--ink-2); margin: 4px 0 8px; flex-wrap: wrap; }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; background: var(--deemph); }
+  .legend span.a::before { background: var(--accent); }
+
+  .matrix td:first-child { font-weight: 600; }
+  .fit { font-weight: 700; white-space: nowrap; }
+  .fit.hi { color: var(--good); }
+  .fit.mid { color: var(--warn); }
+  .fit.lo { color: var(--crit); }
+
+  .steps { counter-reset: s; list-style: none; padding: 0; }
+  .steps li { counter-increment: s; position: relative; padding-left: 40px; margin-bottom: 14px; }
+  .steps li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+  .refs { font-size: 14px; }
+  .refs ol { padding-left: 26px; }
+  .refs li { margin-bottom: 8px; color: var(--ink-2); }
+  sup.r a { text-decoration: none; font-size: 11px; color: var(--accent); font-weight: 600; }
+  .verdict { font-size: 19px; }
+  mark { background: var(--mark); color: inherit; padding: 0 3px; border-radius: 3px; }
+  footer { border-top: 1px solid var(--border); padding: 30px 0 0; color: var(--muted); font-size: 13px; }
+  @media (max-width: 640px) {
+    body { font-size: 16px; }
+    .lede { font-size: 18px; }
+    nav.top .in { gap: 4px 12px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="top"><div class="in">
+  <a class="brand" href="#top">Jev · estudo</a>
+  <a class="l" href="#tldr">Resumo</a>
+  <a class="l" href="#oque">O que é</a>
+  <a class="l" href="#como">Como funciona</a>
+  <a class="l" href="#numeros">Números</a>
+  <a class="l" href="#casos">Casos reais</a>
+  <a class="l" href="#relevante">Onde é relevante</a>
+  <a class="l" href="#padroes">Padrões</a>
+  <a class="l" href="#limites">Limites e críticas</a>
+  <a class="l" href="#adotar">Como adotar</a>
+  <a class="l" href="#fontes">Fontes</a>
+</div></nav>
+
+<main id="top">
+
+<header class="hero">
+  <div class="kicker">Estudo · TypeSafe AI · setembro de 2026</div>
+  <h1>Jev, o modelo que não escreve texto</h1>
+  <p class="lede">Um modelo de IA que só sabe <strong>decidir</strong>: você manda um estado e perguntas tipadas, ele devolve escolhas, notas e probabilidades calibradas em ~100 ms, sem gerar uma palavra. Este site reúne o que a documentação diz, o que testes independentes mediram, e uma análise de onde isso realmente importa.</p>
+  <div class="facts">
+    <div class="fact"><div class="v">15 set 2026</div><div class="k">lançamento em early access</div></div>
+    <div class="fact"><div class="v">$0,042</div><div class="k">por milhão de tokens de entrada, saída grátis</div></div>
+    <div class="fact"><div class="v">70–500 ms</div><div class="k">latência ponta a ponta (vendor)</div></div>
+    <div class="fact"><div class="v">US$ 40M</div><div class="k">seed liderado pela DCVC</div></div>
+    <div class="fact"><div class="v">13%</div><div class="k">dos times pagos da Vercel em 24h</div></div>
+  </div>
+</header>
+
+<!-- ============ TL;DR ============ -->
+<section id="tldr">
+  <h2><span class="n">00</span>Resumo em 90 segundos</h2>
+  <div class="wrap">
+    <p class="verdict"><mark>Jev é uma "função de inteligência" com tipo de retorno fixo</mark>: <code>Choice</code> (qual opção?), <code>Score</code> (qual nível?) e <code>Noul</code> (isso é verdade? probabilidade 0–1). Ele nunca devolve texto livre e por isso nunca quebra um schema. Em troca, ele não explica, não gera, não vê imagem e não raciocina em múltiplos passos.</p>
+    <ul>
+      <li><strong>Onde ele brilha:</strong> decisões repetidas em alto volume onde a resposta cabe num enum. Roteamento de tickets, moderação em tempo real, guardrails de tool-calls em agentes, verificação de extrações, re-ranking, feature extraction para ML clássico.</li>
+      <li><strong>O que testes independentes confirmam:</strong> latência sub-segundo e custo entre 100x e 500x menor que LLMs estão reais.<sup class="r"><a href="#f9">9</a><a href="#f12">12</a><a href="#f13">13</a></sup> A confiança se comportou de forma calibrada num benchmark de risco de tool-call.<sup class="r"><a href="#f13">13</a></sup></li>
+      <li><strong>O que não está provado:</strong> a alegação central de calibração via RLCD não tem paper, curva de confiabilidade nem ECE publicado. Um estudo fora de distribuição achou ECE de 0,107 e "alucinação confiante" numa pergunta baseada em política interna.<sup class="r"><a href="#f14">14</a></sup></li>
+      <li><strong>Acurácia:</strong> no benchmark do próprio vendor, Jev empata com GPT-5.6 Terra e fica 5 a 6 pontos abaixo de GPT-5.6 Sol e Opus 5.<sup class="r"><a href="#f1">1</a><a href="#f10">10</a></sup> Ele não é mais inteligente; é <em>muito</em> mais barato e rápido para uma classe estreita de tarefa.</li>
+      <li><strong>A alavanca real é a decomposição:</strong> num benchmark de phishing, Jev fez 62,6% com uma pergunta única e 95,0% quando a tarefa foi quebrada em cinco sinais combinados por regressão logística.<sup class="r"><a href="#f14">14</a></sup> Quem trata Jev como "LLM barato" se decepciona; quem trata como primitiva composável ganha.</li>
+    </ul>
+    <div class="callout">
+      <div class="t">Minha leitura</div>
+      <p>Jev não compete com Claude ou GPT. Ele compete com <em>o que você faz hoje quando precisa de um if-statement semântico</em>: embeddings + threshold, BERT fine-tuned, regex frágil, ou uma chamada cara de LLM com JSON mode. Se você tem esse tipo de decisão rodando milhares de vezes por dia, vale um shadow eval de uma semana. Se não tem, ignore o hype.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ O QUE É ============ -->
+<section id="oque">
+  <h2><span class="n">01</span>O que é o Jev</h2>
+  <div class="wrap">
+    <p>Jev é o primeiro modelo público da <strong>TypeSafe AI</strong>, um laboratório fundado por <strong>Diogo Almeida</strong> (ex-OpenAI e ex-Google Brain, coautor de RLHF e InstructGPT, os métodos que geraram o ChatGPT), com Erik Gafni e Sasha Sheng. A empresa ficou dois anos em stealth e saiu com US$ 40 milhões de seed liderados pela DCVC.<sup class="r"><a href="#f3">3</a><a href="#f5">5</a></sup></p>
+    <p>A TypeSafe chama o Jev de <strong>System One Model</strong>, em referência a Kahneman: Sistema 1 é o pensamento rápido e intuitivo; Sistema 2 é lento e deliberativo. LLMs de raciocínio são Sistema 2. Jev é o Sistema 1: "o tipo de julgamento que uma pessoa muito bem informada faria em poucos segundos".<sup class="r"><a href="#f1">1</a></sup></p>
+    <p>A pergunta que motiva o produto, nas palavras do fundador: <em>"Os modelos são super-humanos em chat há anos. Onde está toda a automação?"</em> O diagnóstico da TypeSafe é que LLMs foram otimizados para conversar com humanos, e software fala outra língua. Quando um programa precisa de uma decisão, ele tem que pedir texto, fazer parsing, validar o schema, torcer para não alucinar e ainda não sabe o quão certo o modelo está.<sup class="r"><a href="#f2">2</a><a href="#f4">4</a></sup></p>
+
+    <h3>O contrato</h3>
+    <p>Jev inverte o contrato. Você envia um <strong>state</strong> (texto ou JSON, até 32k tokens) e um conjunto de <strong>questions</strong> tipadas. Ele devolve, para cada pergunta, uma resposta do tipo pedido, a distribuição de probabilidade sobre as opções e um valor de confiança. Todas as perguntas são avaliadas <strong>em paralelo e isoladas</strong> contra o mesmo estado, então adicionar perguntas custa quase nada em latência.<sup class="r"><a href="#f1">1</a></sup></p>
+    <div class="callout">
+      <div class="t">A frase da TypeSafe que melhor resume</div>
+      <p>"Pense no Jev como uma chamada de função com inteligência de fronteira: estado não estruturado entra, decisões probabilísticas tipadas saem."<sup class="r"><a href="#f2">2</a></sup></p>
+    </div>
+
+    <h3>O que ele deliberadamente não faz</h3>
+    <ul>
+      <li>Não gera texto, código ou explicações. Não existe "por quê" na resposta, só números.</li>
+      <li>Não aceita imagem, áudio ou vídeo. Entrada é texto e JSON.<sup class="r"><a href="#f7">7</a></sup></li>
+      <li>Não faz fine-tuning nem LoRA com dados do cliente.<sup class="r"><a href="#f7">7</a></sup></li>
+      <li>Não encadeia raciocínio. Cada pergunta é independente; se a segunda depende da primeira, são duas chamadas.<sup class="r"><a href="#f1">1</a></sup></li>
+    </ul>
+    <p>O nome vem de William Stanley Jevons, o economista do <em>paradoxo de Jevons</em>: quando um recurso fica muito mais barato, o consumo total dele explode. A aposta declarada é que decisões de IA a US$ 0,00002 cada vão aparecer em lugares onde ninguém pensaria em chamar um LLM.<sup class="r"><a href="#f3">3</a></sup></p>
+  </div>
+</section>
+
+<!-- ============ COMO FUNCIONA ============ -->
+<section id="como">
+  <h2><span class="n">02</span>Como funciona</h2>
+  <div class="wrap">
+    <h3>As três primitivas</h3>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Primitiva</th><th>Pergunta</th><th>Retorna</th><th>Use quando</th></tr></thead>
+      <tbody>
+        <tr><td><code>Choice</code></td><td>"Qual destas opções?"</td><td><code>choice</code>, <code>probabilities</code>, <code>confidence</code></td><td>Categorias sem ordem natural: fila de suporte, idioma, tipo de documento. Até 255 opções.</td></tr>
+        <tr><td><code>Score</code></td><td>"Qual nível?"</td><td><code>score</code> (pode cair entre níveis), <code>legend</code>, <code>probabilities</code>, <code>confidence</code></td><td>Posição num espectro ordenado: severidade, frustração, relevância.</td></tr>
+        <tr><td><code>Noul</code></td><td>"Isso é verdade?"</td><td><code>noul</code> (0 a 1)</td><td>Sim/não onde a probabilidade em si é o valor: PII presente? pede reembolso? é jailbreak?</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Uma chamada mínima em Python:</p>
+<pre><code>from typesafe_sdk import Choice, Noul, Score, TypeSafeClient
+
+client = TypeSafeClient()  # lê TYPESAFE_API_KEY do ambiente
+
+r = client.system_one(
+    state={"ticket": {"message": "Fui cobrado duas vezes e ninguém responde há 3 dias!"}},
+    questions={
+        "fila": Choice(
+            instructions="Qual time deve tratar `ticket.message`?",
+            criteria={"billing": "Cobrança e pagamento",
+                      "technical": "Bugs e integração",
+                      "sales": "Preço e planos"},
+        ),
+        "frustracao": Score(
+            instructions="Quão frustrado o cliente parece?",
+            criteria=["Calmo e neutro.", "Preocupado mas civil.", "Muito irritado."],
+        ),
+        "reembolso": Noul(instructions="O cliente pede reembolso?"),
+    },
+)
+
+r.choices["fila"].choice          # "billing"
+r.choices["fila"].confidence      # 0.94
+r.scores["frustracao"].score      # 1.7  (entre "preocupado" e "muito irritado")
+r.nouls["reembolso"].noul         # 0.31</code></pre>
+    <p>O mesmo endpoint REST é <code>POST https://api.typesafe.ai/v1/systemone</code>, com modelo <code>jev-latest</code> (hoje <code>jev-1.13.0</code>). Há SDK JavaScript, integração <code>langchain-typesafe</code>, provider no Vercel AI Gateway e no Cloudflare Workers AI como <code>typesafe/jev</code>.<sup class="r"><a href="#f6">6</a><a href="#f16">16</a><a href="#f17">17</a></sup></p>
+
+    <h3>Confiança não é probabilidade</h3>
+    <p>Para <code>Choice</code> e <code>Score</code>, a <strong>probabilidade</strong> é a distribuição sobre as opções. A <strong>confiança</strong> é uma medida de quão concentrada essa distribuição está. Um vencedor com 0,45 e o segundo com 0,44 é uma situação muito diferente de um vencedor com 0,45 e o resto pulverizado. Para 3 opções, a fórmula é <code>(3 × p_max − 1) / 2</code>.<sup class="r"><a href="#f8">8</a></sup></p>
+    <p>A documentação recomenda três faixas: <strong>alta</strong> → age sozinho; <strong>média</strong> → confirma com usuário ou marca para revisão; <strong>baixa</strong> → não age, escala para humano ou para um LLM. Os thresholds escalam com o risco: leitura pode aceitar confiança baixa, ação destrutiva exige &gt; 0,9 ou confirmação.<sup class="r"><a href="#f8">8</a></sup></p>
+
+    <h3>Como é treinado</h3>
+    <p>A TypeSafe descreve uma stack nova: arquitetura própria, um <em>sampler paralelo</em> que gera todas as respostas de uma vez em vez de token a token, e um método de treino chamado <strong>RLCD (Reinforcement Learning for Calibrated Decisions)</strong>. Onde RLHF otimiza preferência humana e RLVR otimiza recompensa verificável, RLCD otimizaria "probabilidades epistemicamente honestas". O treino é 100% em dados sintéticos gerados por um laboratório interno.<sup class="r"><a href="#f2">2</a><a href="#f3">3</a></sup></p>
+    <p>A arquitetura é proprietária "por enquanto"; um paper está prometido. Na thread do Hacker News, quando um comentarista disse que Jev "é basicamente um classificador zero-shot", o fundador respondeu "exactly right!". Engenheiros mapearam o produto em técnicas conhecidas: constrained decoding, classificadores estilo BERT, modelos de difusão de decisão. A novidade, segundo a própria empresa, está mais nos dados e no treino de calibração do que na arquitetura.<sup class="r"><a href="#f15">15</a><a href="#f18">18</a></sup></p>
+
+    <h3>Limites operacionais</h3>
+    <div class="tablewrap">
+    <table>
+      <tbody>
+        <tr><td>Contexto</td><td>64k tokens por request; 32k para <code>state</code> + a pergunta mais longa</td></tr>
+        <tr><td>Rate limit padrão</td><td>250.000 tokens/s e 1.200 requests/min (ajustando dinamicamente por demanda)</td></tr>
+        <tr><td>Preço</td><td>US$ 0,042 por milhão de tokens de entrada (US$ 42 por bilhão); saída gratuita</td></tr>
+        <tr><td>Modalidade</td><td>Texto e JSON. Sem imagem, áudio, vídeo</td></tr>
+        <tr><td>Customização</td><td>Sem fine-tuning. Toda a adaptação é via instruções, critérios e código</td></tr>
+        <tr><td>Acesso</td><td>Early access por waitlist; também via Vercel AI Gateway e Cloudflare Workers AI</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ NÚMEROS ============ -->
+<section id="numeros">
+  <h2><span class="n">03</span>Os números, separando vendor de independente</h2>
+  <p class="sub">A TypeSafe publicou benchmarks próprios com viés declarado. Terceiros reproduziram parte deles. Cada gráfico abaixo está marcado com a origem.</p>
+
+  <h3>Benchmark da TypeSafe: 4 workflows de decisão <span class="pill vendor">dados do vendor</span></h3>
+  <div class="wrap"><p>A TypeSafe rodou Jev e três LLMs de fronteira em quatro workflows de automação criados pelo próprio time. Os LLMs passaram por um adapter open-source que força saída estruturada. A empresa reconhece que "algum viés pode existir" e que os multiplicadores de 193,6x e 444,6x estão "no lado alto dos ganhos reais".<sup class="r"><a href="#f2">2</a><a href="#f10">10</a></sup></p></div>
+  <div class="grid3">
+    <div class="viz" id="c-lat"></div>
+    <div class="viz" id="c-cost"></div>
+    <div class="viz" id="c-acc"></div>
+  </div>
+  <div class="wrap">
+    <p>A leitura honesta desses três gráficos: Jev <strong>não ganha em acurácia</strong>. Ele empata com o modelo mais fraco do grupo e perde por 5–6 pontos para os dois mais fortes. O que ele faz é entregar essa acurácia por 1/75 do custo e 1/25 do tempo do modelo mais próximo. Se seu problema tolera 68% de acerto bruto (ou se você usa a confiança para só automatizar a fatia em que ele acerta 90%+), a conta muda de patamar.</p>
+    <p>Um exemplo isolado da homepage: uma tarefa em 0,114 s a US$ 0,000081 no Jev, contra 8,566 s a US$ 0,01388 na média dos LLMs.<sup class="r"><a href="#f4">4</a></sup></p>
+  </div>
+
+  <h3>Testes independentes <span class="pill good">terceiros</span></h3>
+  <div class="grid2">
+    <div class="viz" id="c-nearhere"></div>
+    <div class="viz" id="c-routing"></div>
+  </div>
+  <div class="viz" id="c-phish"></div>
+  <div class="wrap">
+    <p>O gráfico de phishing é o mais importante do site. Com uma pergunta única ("é phishing?"), Jev perdeu feio para o Claude Haiku. Quando o autor quebrou a tarefa em cinco perguntas atômicas (URL encurtada? remetente em domínio grátis? cria urgência? etc.) e treinou uma regressão logística sobre as cinco probabilidades, Jev foi a 95,0%. O detalhe crucial: a decomposição <em>só ajudou o Jev</em>. O melhor sinal isolado do Haiku (94,2%) bateu o próprio composto do Haiku. Ou seja, Jev não é um LLM pior; é um tipo de peça diferente, que rende quando você o usa como sensor e não como oráculo.<sup class="r"><a href="#f14">14</a></sup></p>
+  </div>
+
+  <h3>Calibração: o ponto mais disputado</h3>
+  <div class="grid2">
+    <div class="card">
+      <h3>Evidência a favor <span class="pill good">independente</span></h3>
+      <div class="meta">themsquared/jev-benchmark · classificação de risco de tool-call · n=60</div>
+      <div class="stat">
+        <div><div class="v">91,7%</div><div class="k">acurácia geral</div></div>
+        <div><div class="v">0,071</div><div class="k">ECE (10 bins)</div></div>
+        <div><div class="v">421 ms</div><div class="k">latência p50</div></div>
+      </div>
+      <p><strong>Todo erro veio com confiança hedgeada</strong> (entre 0,13 e 0,785). Nenhum erro com confiança 1,0. Nos 50 casos com confiança 0,9–1,0, 98% de acerto. Casos ambíguos: 71,4%. Casos adversariais (comando destrutivo embrulhado em linguagem benigna): 11 de 12. Conclusão do autor: "neste conjunto de tarefas, a alegação de calibração se sustenta".<sup class="r"><a href="#f13">13</a></sup></p>
+    </div>
+    <div class="card">
+      <h3>Evidência contra <span class="pill warn">independente</span></h3>
+      <div class="meta">Estudo fora de distribuição citado por THE D*AI*LY BRIEF</div>
+      <div class="stat">
+        <div><div class="v">0,107</div><div class="k">ECE, 4,4x o piso de ruído</div></div>
+        <div><div class="v">44,7%</div><div class="k">acerto com prob. média 0,74</div></div>
+      </div>
+      <p>Quando a pergunta dependia de uma política interna que <em>não estava no texto</em> (prioridade de ticket), o modelo errou mais da metade enquanto se declarava 74% confiante. Nouls tendiam a subconfiança; Choice e Score, a superconfiança. A acurácia ficou plana entre 0,50 e 0,95 de probabilidade e só saltou para 100% em 0,99. Recomendação do autor: calibrar threshold por pergunta e não automatizar abaixo de 0,99 sem validação própria.<sup class="r"><a href="#f14">14</a></sup></p>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="callout warn">
+      <div class="t">Como conciliar as duas</div>
+      <p>As duas evidências são compatíveis. Quando o sinal está <em>no texto</em> (um comando <code>kubectl delete</code> é destrutivo em qualquer contexto), a calibração parece boa. Quando a resposta depende de conhecimento que o modelo não recebeu no state, ele não sabe que não sabe. Isso reforça a regra da própria TypeSafe: nunca dependa dos pesos do modelo para informação que seu código já tem. Coloque a política no state ou nos critérios.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CASOS REAIS ============ -->
+<section id="casos">
+  <h2><span class="n">04</span>Casos reais</h2>
+  <p class="sub">Seis dias após o lançamento, os casos com números públicos são testes controlados e integrações de plataforma, não implantações auditadas em produção. Estão separados por nível de evidência.</p>
+
+  <h3>Com medição própria publicada</h3>
+  <div class="grid2">
+    <div class="card">
+      <h3>Near Here · moderação de eventos</h3>
+      <div class="meta">Empresa de eventos no Reino Unido · 50 decisões reais de listagem</div>
+      <div class="stat">
+        <div><div class="v">96%</div><div class="k">Jev (48/50)</div></div>
+        <div><div class="v">86%</div><div class="k">Gemini 3.5 Flash-Lite</div></div>
+        <div><div class="v">84%</div><div class="k">Mistral Small 4</div></div>
+      </div>
+      <p>Depois que uma listagem passa por checks determinísticos, sobra uma pergunta estreita: "estas palavras descrevem algo que devemos excluir?". Jev respondeu em 0,59 s por decisão, a US$ 0,043 por mil decisões. É o caso mais próximo de "produção": tarefa real, dados reais, resposta binária.<sup class="r"><a href="#f9">9</a></sup></p>
+    </div>
+    <div class="card">
+      <h3>Every · qualidade de escrita</h3>
+      <div class="meta">Mike Taylor (Head of Evals) e Dan Shipper · 37 documentos, 21 perguntas</div>
+      <div class="stat">
+        <div><div class="v">777</div><div class="k">julgamentos em &lt; 0,7 s</div></div>
+        <div><div class="v">~¼ ¢</div><div class="k">custo total</div></div>
+        <div><div class="v">6 de 7</div><div class="k">defeitos pegos (Fable 5.1: 7 de 7)</div></div>
+      </div>
+      <p>Jev sinalizou corretamente quais textos tinham mais "cara de IA". Na comparação direta em 12 trechos sintéticos, Jev levou 0,35 s por trecho contra 8,83 s do Fable 5.1 e custou ~580x menos, mas deixou passar um defeito. Veredito do Taylor: teste em julgamentos que você já faz repetidamente; a velocidade permite checar <em>durante</em> a execução da tarefa, não só depois.<sup class="r"><a href="#f11">11</a></sup></p>
+    </div>
+    <div class="card">
+      <h3>Classmethod · roteamento de modelo</h3>
+      <div class="meta">DevelopersIO · substituindo o classificador do NVIDIA NeMo Switchyard</div>
+      <div class="stat">
+        <div><div class="v">0,66 s</div><div class="k">Jev (mediana)</div></div>
+        <div><div class="v">2,1 s</div><div class="k">Gemini 3.5 Flash</div></div>
+        <div><div class="v">7,2 s</div><div class="k">DeepSeek V4 Flash</div></div>
+      </div>
+      <p>A tarefa era classificar conversas em quatro tiers (simple, medium, complex, reasoning) para escolher o LLM. 40 de 40 acertos, a US$ 0,000025 por chamada. Detalhe honesto: os tiers "simple", "complex" e "reasoning" vieram com confiança 1,0; o tier "medium" veio com 0,57–0,67, refletindo ambiguidade real. Amostra pequena, sem casos difíceis.<sup class="r"><a href="#f12">12</a></sup></p>
+    </div>
+    <div class="card">
+      <h3>jev-phishing-bench · detecção de phishing</h3>
+      <div class="meta">2.000 e-mails sintéticos (PhishNChips v5.2), rótulos por reputação de URL</div>
+      <div class="stat">
+        <div><div class="v">62,6%</div><div class="k">pergunta única</div></div>
+        <div><div class="v">95,0%</div><div class="k">5 sinais + regressão</div></div>
+        <div><div class="v">$0,038</div><div class="k">por mil e-mails (Haiku: $1,02)</div></div>
+      </div>
+      <p>O caso que mais ensina sobre <em>como</em> usar Jev. Ver seção de números.<sup class="r"><a href="#f14">14</a></sup></p>
+    </div>
+  </div>
+
+  <h3>Adoção por plataformas</h3>
+  <div class="grid2">
+    <div class="card">
+      <h3>Vercel AI Gateway</h3>
+      <div class="meta">Disponível em 16 set 2026, um dia após o lançamento</div>
+      <div class="stat">
+        <div><div class="v">13%</div><div class="k">dos times pagos em 24 h</div></div>
+        <div><div class="v">2x</div><div class="k">a família GPT-5.6</div></div>
+        <div><div class="v">6x</div><div class="k">o Fable 5.1</div></div>
+      </div>
+      <p>"O modelo mais rapidamente adotado na história do gateway". A Vercel lista os usos que vê: escolher a próxima tool ou subagente, decidir se um workflow continua/retenta/pede input/termina, pontuar urgência ou risco antes de agir, verificar saída e rotear incerteza para revisão humana. O TechCrunch reporta que a Vercel trocou um modelo da OpenAI pelo Jev na revisão de segurança de comandos e obteve resultados 5 a 18x mais rápidos com maior acurácia.<sup class="r"><a href="#f3">3</a><a href="#f16">16</a><a href="#f19">19</a></sup></p>
+    </div>
+    <div class="card">
+      <h3>LangChain, Cloudflare, Langfuse</h3>
+      <div class="meta">Integrados em 3 dias</div>
+      <p><strong>LangChain</strong> lançou <code>langchain-typesafe</code> com dois middlewares prontos: <code>ModelRouterMiddleware</code> (Jev escolhe o LLM mais barato capaz da tarefa) e <code>AutoModeMiddleware</code> (Jev avalia se um tool-call como <code>bash</code> é seguro antes de executar). Cita Browserbase rodando agentes de navegador a frações de centavo, um agente de trading ao vivo e triagem de e-mail em escala.<sup class="r"><a href="#f17">17</a></sup></p>
+      <p><strong>Cloudflare</strong> expõe como <code>env.AI.run('typesafe/jev', {state, questions})</code> no Workers AI, para decisões na edge.<sup class="r"><a href="#f20">20</a></sup></p>
+    </div>
+  </div>
+
+  <h3>Cookbooks oficiais com resultados</h3>
+  <div class="grid2">
+    <div class="card">
+      <h3>Classificação hierárquica com confiança <span class="pill vendor">vendor</span></h3>
+      <div class="meta">60 relatórios 10-K da SEC · 75 grupos industriais SIC</div>
+      <p>Uma única <code>Choice</code> com 75 opções. Forçando sempre o grupo específico: 65% de acerto (39/60). Mas a metade com confiança ≥ 0,9 acertou <strong>90%</strong> (27/30) e a metade incerta só 40%. Reportando a divisão-pai quando a confiança é baixa, a utilidade sobe para 80% (48/60) sem chamada extra. Isto é o padrão "confidence-gated" funcionando com números.<sup class="r"><a href="#f21">21</a></sup></p>
+    </div>
+    <div class="card">
+      <h3>Cascata de extração (SDE cascade) <span class="pill vendor">vendor</span></h3>
+      <div class="meta">gpt-5.4-mini extrai → Jev verifica campo a campo → gpt-5.5 só se necessário</div>
+      <p>Um modelo barato extrai JSON. Jev responde, por campo, uma <code>Noul</code> "isto está errado?" (alucinado, fora do alvo, tipo errado). Se qualquer campo passa de 0,7, escala para o modelo caro. Resultado: quase toda a qualidade do gpt-5.5 a uma fração do custo. Exemplo real: uma descrição inventada que era schema-válida recebeu P(alucinado)=0,95 e foi escalada.<sup class="r"><a href="#f22">22</a></sup></p>
+    </div>
+  </div>
+  <div class="wrap">
+    <p>Na comunidade, os demos que circulam são bots de Discord com disciplina progressiva, moderação de chat em escala Twitch julgando cada mensagem antes de aparecer, entity resolution em genealogia (100 mil² pares precisam de um scorer barato e confiável), e um bot jogando Doom a ~10 Hz a partir do estado estruturado do jogo.<sup class="r"><a href="#f15">15</a><a href="#f23">23</a></sup></p>
+  </div>
+</section>
+
+<!-- ============ ONDE É RELEVANTE ============ -->
+<section id="relevante">
+  <h2><span class="n">05</span>Onde o Jev realmente é relevante</h2>
+  <p class="sub">Análise: cruzando o que a documentação promete, o que os testes mediram e o que os modos de falha conhecidos proíbem.</p>
+  <div class="wrap">
+    <p>A pergunta certa não é "Jev é bom?". É "<strong>minha decisão cabe num enum, se repete muito e o custo de errar 5–10% dos casos é absorvível com um fallback?</strong>". Se sim para as três, Jev provavelmente é a melhor ferramenta disponível hoje. Se não para qualquer uma, existe algo melhor.</p>
+    <h3>Os cinco critérios de fit</h3>
+    <ol>
+      <li><strong>Espaço de resposta conhecido de antemão.</strong> Se você consegue listar as opções, é Choice. Se é uma escala, Score. Se é sim/não, Noul. Se precisa de texto livre, não é Jev.</li>
+      <li><strong>Sinal presente no state.</strong> O modelo julga o que está no texto. Políticas, regras de negócio e fatos atuais precisam ir no state ou nos critérios, não podem ser assumidos.</li>
+      <li><strong>Volume ou latência que torna LLM inviável.</strong> Milhares de decisões por dia, ou uma decisão que precisa caber num request de usuário (&lt; 200 ms). Abaixo disso, a economia não compensa a mudança de stack.</li>
+      <li><strong>Tolerância a erro com rota de escape.</strong> Você precisa ter o que fazer com os 10–30% de baixa confiança: humano, LLM, regra determinística.</li>
+      <li><strong>Sem exigência de justificativa.</strong> Jev devolve um número, não um raciocínio. Auditoria regulatória que exige "por quê" precisa de outro componente.</li>
+    </ol>
+  </div>
+
+  <h3>Matriz de cenários</h3>
+  <div class="tablewrap">
+  <table class="matrix">
+    <thead><tr><th>Cenário</th><th>Fit</th><th>Por quê</th><th>Alternativa se não</th></tr></thead>
+    <tbody>
+      <tr><td>Guardrail de tool-call em agentes (é destrutivo? precisa confirmar?)</td><td class="fit hi">Alto</td><td>Sinal está no comando. 91,7% com erros hedgeados no benchmark independente. Roda a cada passo sem estourar latência.<sup class="r"><a href="#f13">13</a></sup></td><td>LLM-as-judge (10–30x mais lento)</td></tr>
+      <tr><td>Moderação em tempo real (chat, comentários, listagens)</td><td class="fit hi">Alto</td><td>Bateria de Nouls + Score de severidade em ~100 ms, antes de publicar. Near Here: 96%.<sup class="r"><a href="#f9">9</a></sup></td><td>Classificador BERT fine-tuned</td></tr>
+      <tr><td>Roteamento de tickets, e-mails, intents</td><td class="fit hi">Alto</td><td>Forma nativa do Choice. Confiança separa o que vai direto do que vai para humano.</td><td>Embeddings + kNN</td></tr>
+      <tr><td>Model routing (barato vs caro) em harness de agente</td><td class="fit hi">Alto</td><td>Custo da decisão precisa ser desprezível em relação ao que ela economiza. Classmethod: 0,66 s vs 2,1–7,2 s.<sup class="r"><a href="#f12">12</a></sup></td><td>Heurísticas de tamanho de prompt</td></tr>
+      <tr><td>Verificação de extração de LLM (cascata)</td><td class="fit hi">Alto</td><td>Pergunta estreita por campo, grounded no texto-fonte. Pega alucinação schema-válida que JSON mode não pega.<sup class="r"><a href="#f22">22</a></sup></td><td>Segundo LLM verificador</td></tr>
+      <tr><td>Map-reduce semântico sobre big data (rotular 50M linhas)</td><td class="fit hi">Alto</td><td>US$ 42 por bilhão de tokens. É a única opção viável para rotulagem em massa com "inteligência de fronteira".</td><td>Modelo pequeno self-hosted</td></tr>
+      <tr><td>Feature extraction para ML clássico</td><td class="fit hi">Alto</td><td>Probabilidades calibradas são features perfeitas para XGBoost/regressão. É como o phishing foi a 95%.<sup class="r"><a href="#f14">14</a></sup></td><td>Embeddings densos</td></tr>
+      <tr><td>Re-ranking de passagens em RAG</td><td class="fit mid">Médio</td><td>Funciona, mas o teto de 32k força uma chamada por chunk quando há 100 candidatos. Batching resolve parcialmente.<sup class="r"><a href="#f24">24</a></sup></td><td>Cross-encoder dedicado</td></tr>
+      <tr><td>Classificação em taxonomia grande (75+ classes)</td><td class="fit mid">Médio</td><td>65% bruto. Vira 90% na metade confiante se você aceitar responder no nível-pai no resto.<sup class="r"><a href="#f21">21</a></sup></td><td>Hierarquia de Choices aninhados</td></tr>
+      <tr><td>Decisão que depende de política interna não escrita no state</td><td class="fit lo">Baixo</td><td>44,7% de acerto com 0,74 de confiança média. Ele não sabe que não sabe.<sup class="r"><a href="#f14">14</a></sup></td><td>Coloque a política no state; se não cabe, LLM com contexto</td></tr>
+      <tr><td>Qualquer coisa com aritmética, datas ou contagem</td><td class="fit lo">Baixo</td><td>"Jev não é uma calculadora." Lê datas como texto. Extraia componentes e calcule em código.<sup class="r"><a href="#f25">25</a></sup></td><td>Regex + código</td></tr>
+      <tr><td>Input controlado pelo usuário sem sanitização</td><td class="fit lo">Baixo</td><td>Não trata o state como hostil por padrão. Instruções injetadas no texto podem virar a resposta.<sup class="r"><a href="#f25">25</a></sup></td><td>Critérios explícitos + teste adversarial antes</td></tr>
+      <tr><td>Decisão que precisa de justificativa auditável</td><td class="fit lo">Baixo</td><td>Retorna número, não rationale. Compliance regulado precisa de outro componente para explicar.</td><td>LLM gerando justificativa <em>depois</em> da decisão</td></tr>
+      <tr><td>Geração, sumarização, chat, código</td><td class="fit lo">Nulo</td><td>Não é o que o modelo faz. Ponto.</td><td>LLM</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="wrap">
+    <h3>A arquitetura que faz sentido</h3>
+    <p>O padrão que emerge de todos os casos bem-sucedidos é <strong>híbrido, com o código no comando</strong>. LLM para raciocinar e gerar, Jev para os pontos de decisão dentro do loop, e código determinístico para fluxo, regras e efeitos colaterais. A TypeSafe chama isso de "System One architecture" e é explícita: "mantenha controle de fluxo, regras determinísticas e side effects no código".<sup class="r"><a href="#f26">26</a></sup></p>
+    <p>Em um harness de agente típico, isso significa que a cada iteração do loop você pode perguntar ao Jev, em paralelo e em ~150 ms: este tool-call é seguro? a tarefa terminou? o modelo está em loop? este resultado é relevante para o objetivo? qual modelo deve executar o próximo passo? Cada uma dessas perguntas hoje ou não é feita (por custo) ou é feita com um LLM que adiciona segundos.<sup class="r"><a href="#f17">17</a></sup></p>
+    <div class="callout good">
+      <div class="t">Onde eu começaria</div>
+      <p>Se você opera agentes: <strong>guardrail de tool-call</strong>. É o caso com melhor evidência independente, o sinal está sempre no comando, e o fallback (pedir confirmação) é natural. Se você opera suporte ou marketplace: <strong>triagem com confidence gating</strong>, rodando em shadow contra as decisões atuais por uma semana antes de ligar.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PADRÕES ============ -->
+<section id="padroes">
+  <h2><span class="n">06</span>Padrões de arquitetura</h2>
+  <p class="sub">Os seis padrões que a documentação e os cookbooks recomendam, com o porquê de cada um.</p>
+  <div class="grid2">
+    <div class="card">
+      <h3>1. Speculative fan-out</h3>
+      <p>Pergunte tudo o que seu código <em>talvez</em> precise, numa única chamada, inclusive perguntas condicionais. Deixe o código decidir o que usar. Como as perguntas são paralelas e a saída é grátis, dez perguntas custam quase o mesmo que uma. O demo de casa inteligente faz isso: categoria, cômodo, dispositivo, ação, tudo de uma vez.<sup class="r"><a href="#f27">27</a></sup></p>
+    </div>
+    <div class="card">
+      <h3>2. Confidence-gated routing</h3>
+      <p>Use a confiança como segundo eixo de decisão. Alta → automatiza. Média → confirma. Baixa → humano ou LLM. Thresholds escalam com o risco da ação e devem ser calibrados <em>por pergunta</em> com seus dados, não copiados de um exemplo.<sup class="r"><a href="#f8">8</a></sup></p>
+    </div>
+    <div class="card">
+      <h3>3. Composite scoring</h3>
+      <p>Nunca pergunte "é spam?". Pergunte "pede credenciais?", "remetente inconsistente?", "cria urgência?", "link disfarçado?" e combine com pesos em código ou com uma regressão logística. Expõe os sinais para inspeção e é o que levou o phishing de 62% para 95%.<sup class="r"><a href="#f14">14</a><a href="#f26">26</a></sup></p>
+    </div>
+    <div class="card">
+      <h3>4. Bateria de guardrails</h3>
+      <p>Uma chamada por mensagem (entrada e saída) com Nouls para cada perigo (jailbreak, dano, conselho médico, autolesão) e um Score de severidade. Thresholds em código definem pass / review / block / support. A política vira produto, não peso de modelo.<sup class="r"><a href="#f28">28</a></sup></p>
+    </div>
+    <div class="card">
+      <h3>5. Cascata de verificação</h3>
+      <p>Modelo barato produz; Jev verifica campo a campo com "isto está errado?"; só o que falha vai para o modelo caro. Agregue com <code>max</code>, não média, para que um campo alucinado com alta confiança não seja diluído.<sup class="r"><a href="#f22">22</a></sup></p>
+    </div>
+    <div class="card">
+      <h3>6. State enxuto e referenciado</h3>
+      <p>Filtre em código antes de enviar: a acurácia cai com conteúdo irrelevante no state. Use JSON aninhado e referencie campos com backticks (<code>`ticket.messages[0].text`</code>) para tirar ambiguidade. Não confie nos pesos para dado que seu sistema já tem.<sup class="r"><a href="#f25">25</a><a href="#f26">26</a></sup></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIMITES ============ -->
+<section id="limites">
+  <h2><span class="n">07</span>Limites e críticas</h2>
+  <div class="wrap">
+    <h3>Os nove modos de falha que a própria TypeSafe documenta</h3>
+    <p>A página "Jev 1.13 jaggedness" é incomum para um vendor: lista onde o modelo falha.<sup class="r"><a href="#f25">25</a></sup></p>
+    <ol>
+      <li><strong>Leitura literal.</strong> Responde a pergunta escrita, não a intenção. Declare a condição exata e os casos de borda.</li>
+      <li><strong>Matemática e números.</strong> Não conta, não compara magnitude, não entende hex ou RGB. Faça em código.</li>
+      <li><strong>Datas.</strong> Lê datas como texto, não como quantidade ordenada. Extraia componentes como Choice e compare em código.</li>
+      <li><strong>Indireção.</strong> Dupla negação e raciocínio multi-hop derrubam a acurácia. Escreva direto.</li>
+      <li><strong>State grande com detalhe irrelevante.</strong> A acurácia cai. Filtre antes.</li>
+      <li><strong>Conteúdo adversarial.</strong> Não trata o input como hostil por padrão. Instruções injetadas podem funcionar.</li>
+      <li><strong>Instruções e critérios contraditórios.</strong> Trate os critérios como extensão da instrução.</li>
+      <li><strong>Invariantes estruturais.</strong> P(A) + P(não A) não soma 1 necessariamente. Não assuma consistência entre perguntas.</li>
+      <li><strong>Geração.</strong> Não gera texto. Para respostas limitadas, use Choice.</li>
+    </ol>
+
+    <h3>As críticas de fora</h3>
+    <h4>"Não alucina" é uma afirmação sobre tipo, não sobre verdade</h4>
+    <p>Foi a linha principal de ataque no Hacker News (256 comentários). Jev garante que a resposta está no schema. Não garante que <code>department=billing</code> está certo quando o certo era <code>technical</code>. Como resumiu um comentarista: "se ele coloca confiança alta numa resposta errada, isso ainda é alucinar". A TypeSafe, pressionada, reconhece que o "0%" é sobre conformidade de schema.<sup class="r"><a href="#f15">15</a><a href="#f18">18</a></sup></p>
+    <h4>A calibração, a alegação central, não tem evidência pública</h4>
+    <p>Todo o argumento de "nova classe de modelo" depende do RLCD produzir probabilidades honestas. Não há paper, curva de confiabilidade, ECE ou ablation separando RLCD da arquitetura. A própria documentação avisa que "calibração é medida sobre grupos de predições; não garante que uma resposta individual está correta". Os testes independentes divergem (ECE 0,071 in-distribution, 0,107 out-of-distribution).<sup class="r"><a href="#f13">13</a><a href="#f14">14</a><a href="#f18">18</a></sup></p>
+    <h4>Os multiplicadores de marketing são o pico, não a média</h4>
+    <p>193,6x e 444,6x vêm de comparação com modelos de <em>raciocínio</em> de fronteira nos workflows da própria TypeSafe. Contra modelos pequenos (Gemini Flash, Haiku), terceiros medem 3x a 25x em velocidade e 25x a 580x em custo. Ainda é enorme, mas não é o número do banner.<sup class="r"><a href="#f11">11</a><a href="#f12">12</a><a href="#f18">18</a></sup></p>
+    <h4>O demo do Doom e o rótulo "frontier"</h4>
+    <p>O bot de Doom recebe coordenadas e ângulos em JSON, não pixels. Foi divulgado, mas comentaristas chamaram a apresentação de enganosa quanto ao que o modelo percebe. O termo "frontier model" no título original foi trocado após pushback, dado que Jev não tem chat, geração nem visão.<sup class="r"><a href="#f15">15</a></sup></p>
+    <h4>Preço pode estar subsidiado</h4>
+    <p>A TypeSafe escreve: "não podemos provar que não é subsidiado". Saída gratuita indefinidamente com US$ 40M de seed é um arranjo que precisa se provar. Quem construir sobre isso deve modelar um cenário de preço 5–10x maior.<sup class="r"><a href="#f2">2</a><a href="#f18">18</a></sup></p>
+    <h4>Prior art</h4>
+    <p>Classificação zero-shot com BART e o modelo open-source Laya já faziam algo parecido. A resposta implícita da TypeSafe é que a diferença está na qualidade dos dados sintéticos e no treino de calibração, não no conceito. Armin Ronacher espera concorrentes, "em parte porque LLMs são tão baratos e subsidiados que ainda não foi preciso ser criativo".<sup class="r"><a href="#f3">3</a><a href="#f15">15</a></sup></p>
+    <h4>Sem SLA, sem clientes nomeados, sem rationale</h4>
+    <p>É early access via waitlist, rate limits "ajustando dinamicamente", zero clientes com nome em produção auditada. E a resposta é um número: para decisões que exigem explicar o porquê, você precisa de um segundo componente.<sup class="r"><a href="#f7">7</a><a href="#f18">18</a></sup></p>
+  </div>
+</section>
+
+<!-- ============ COMO ADOTAR ============ -->
+<section id="adotar">
+  <h2><span class="n">08</span>Checklist para avaliar na sua stack</h2>
+  <div class="wrap">
+    <p>Consolidado das recomendações da documentação, dos autores dos benchmarks independentes e da análise acima.</p>
+    <ol class="steps">
+      <li><strong>Escolha uma decisão que já existe.</strong> Uma que hoje é feita por regra frágil, por embeddings ou por LLM, e que você consegue enumerar. Não invente um caso novo para o modelo.</li>
+      <li><strong>Rode em shadow.</strong> 1.000 a 2.000 decisões históricas com ground truth. Custa centavos. Compare com o que você faz hoje, não com o banner da TypeSafe.<sup class="r"><a href="#f14">14</a></sup></li>
+      <li><strong>Decomponha antes de julgar.</strong> Se a pergunta única der ruim, quebre em 4–6 sinais atômicos e combine em código ou regressão. Só depois decida se Jev serve.</li>
+      <li><strong>Adicione "nenhuma destas" em todo Choice.</strong> Sem essa opção, o modelo é forçado a escolher algo mesmo quando nada se aplica.<sup class="r"><a href="#f14">14</a></sup></li>
+      <li><strong>Calibre threshold por pergunta.</strong> Ajuste em metade do dataset, meça na outra metade. Não use um threshold global.</li>
+      <li><strong>Meça custo por decisão correta.</strong> Não compare preço por token. Compare o custo total para atingir sua barra de acurácia, incluindo o fallback.</li>
+      <li><strong>Teste injeção de prompt.</strong> Coloque instruções maliciosas no state e veja se a resposta muda. Se muda, adicione critérios explícitos ou sanitize antes.</li>
+      <li><strong>Pin a versão.</strong> Use <code>jev-1.13.0</code>, não <code>jev-latest</code>, em produção. Reavalie thresholds a cada upgrade.</li>
+      <li><strong>Mantenha a rota de escape.</strong> Todo caminho de baixa confiança precisa de um destino: humano, LLM ou regra. Sem isso, você só trocou um erro silencioso por outro.</li>
+      <li><strong>Modele o preço subindo.</strong> Se a economia só fecha a US$ 0,042/M, ela não fecha.</li>
+    </ol>
+    <div class="callout">
+      <div class="t">Ponto de partida rápido</div>
+<pre><code>pip install typesafe-sdk
+export TYPESAFE_API_KEY=...
+
+# ou, no Claude Code:
+claude plugin marketplace add typesafe-ai/skills
+claude plugin install typesafe@typesafe-ai</code></pre>
+      <p>Docs: <a href="https://docs.typesafe.ai/introduction">docs.typesafe.ai</a> · índice completo em <a href="https://docs.typesafe.ai/llms.txt">llms.txt</a> · console em <a href="https://console.typesafe.ai/">console.typesafe.ai</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FONTES ============ -->
+<section id="fontes" class="refs">
+  <h2><span class="n">09</span>Fontes</h2>
+  <p class="sub">Tudo acessado em 21 de setembro de 2026. Vendor = TypeSafe AI ou parceiro comercial. Independente = terceiro sem relação comercial declarada.</p>
+  <ol>
+    <li id="f1">TypeSafe AI Docs, <a href="https://docs.typesafe.ai/introduction">Introduction</a>, <a href="https://docs.typesafe.ai/primitives">Primitives</a>, <a href="https://docs.typesafe.ai/concepts/system-one">System One</a>. Vendor.</li>
+    <li id="f2">TypeSafe AI Blog, <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">Introducing System One Models &amp; Jev</a>, 15 set 2026. Vendor.</li>
+    <li id="f3">TechCrunch, <a href="https://techcrunch.com/2026/09/18/a-new-kind-of-ai-model-from-a-chatgpt-inventor-is-thrilling-developers/">A new kind of AI model from a ChatGPT inventor is thrilling developers</a>, 18 set 2026. Imprensa.</li>
+    <li id="f4">TypeSafe AI, <a href="https://typesafe.ai/">homepage</a> e <a href="https://typesafe.ai/manifesto">manifesto</a>. Vendor.</li>
+    <li id="f5">Business Wire via <a href="https://www.morningstar.com/news/business-wire/20260915525333/typesafe-ai-emerges-from-stealth-with-40m-in-funding-with-new-model-for-composable-ai">Morningstar</a>, TypeSafe AI Emerges From Stealth With $40M, 15 set 2026. Press release.</li>
+    <li id="f6">TypeSafe AI Docs, <a href="https://docs.typesafe.ai/introduction/quickstart">Quick start</a>. Vendor.</li>
+    <li id="f7">TypeSafe AI Docs, <a href="https://docs.typesafe.ai/models">Models</a> (limites, rate limits, preço). Vendor.</li>
+    <li id="f8">TypeSafe AI Docs, <a href="https://docs.typesafe.ai/confidence">Confidence</a> e <a href="https://docs.typesafe.ai/patterns/confidence-routing">Confidence-gated routing</a>. Vendor.</li>
+    <li id="f9">Near Here, <a href="https://nearhere.events/blog/typesafe-jev-mistral-gemini-event-validation">Testing TypeSafe Jev, Mistral and Gemini for local event validation</a>. Independente.</li>
+    <li id="f10">DataCamp, <a href="https://www.datacamp.com/blog/system-one-models-jev">Jev: TypeSafe's System One Model That Never Hallucinates</a> (reproduz a tabela do vendor com caveats). Independente.</li>
+    <li id="f11">Every, <a href="https://every.to/vibe-check/mini-vibe-check-typesafe-s-jev-judged-everything-i-ve-written-in-0-7-seconds">Mini-Vibe Check: TypeSafe's Jev Judged Everything I've Written in 0.7 Seconds</a>. Independente.</li>
+    <li id="f12">Classmethod DevelopersIO, <a href="https://dev.classmethod.jp/en/articles/jev-for-llm-model-routing/">I tried replacing model routing with TypeSafe (Jev)</a>. Independente.</li>
+    <li id="f13">themsquared, <a href="https://github.com/themsquared/jev-benchmark">jev-benchmark</a>: risco de tool-call, acurácia, latência e calibração. Independente, reproduzível.</li>
+    <li id="f14">THE D*AI*LY BRIEF, <a href="https://www.beri.net/article/typesafe-jev-typed-decision-model-calibration-decomposition-shadow-eval">TypeSafe's Jev Scores 62.6% Asked Once and 95% Split Five Ways</a>, cobrindo <a href="https://github.com/anisselbd/jev-phishing-bench">jev-phishing-bench</a> e um estudo de calibração OOD. Independente.</li>
+    <li id="f15">Hacker News, <a href="https://news.ycombinator.com/item?id=49717558">Introducing System One Models and Jev</a>, 256 comentários, com respostas do CEO. Comunidade.</li>
+    <li id="f16">Vercel, <a href="https://vercel.com/blog/ai-gateway-jev-model-launch">Jev is the fastest-adopted model in AI Gateway history</a> e <a href="https://vercel.com/changelog/typesafe-ai-jev-now-available-on-ai-gateway">changelog</a>. Parceiro.</li>
+    <li id="f17">LangChain, <a href="https://www.langchain.com/blog/building-a-harness-with-jev">Building a harness with Jev</a>. Parceiro.</li>
+    <li id="f18">Agentpedia, <a href="https://agentpedia.codes/blog/jev-system-one-models">Jev &amp; System One Models: The Claim-vs-Evidence Guide</a>. Independente.</li>
+    <li id="f19">Startup Fortune, <a href="https://startupfortune.com/typesafe-ais-decision-model-jev-becomes-vercels-fastest-adopted-launch/">Jev Becomes Vercel's Fastest Adopted Launch</a>. Imprensa.</li>
+    <li id="f20">Cloudflare AI Docs, <a href="https://developers.cloudflare.com/ai/models/typesafe/jev/">Jev (typesafe)</a>. Parceiro.</li>
+    <li id="f21">TypeSafe AI Cookbooks, <a href="https://docs.typesafe.ai/cookbooks/classification_using_confidence">Classification using confidence</a> (SEC 10-K). Vendor.</li>
+    <li id="f22">TypeSafe AI Cookbooks, <a href="https://docs.typesafe.ai/cookbooks/sde_cascade">SDE cascade</a>. Vendor.</li>
+    <li id="f23">CloudRaft, <a href="https://www.cloudraft.io/blog/top-use-cases-of-jev-typesafe-ai-model">Top Use Cases of Jev</a>. Independente.</li>
+    <li id="f24">rachit-srivastava-devx, <a href="https://github.com/rachit-srivastava-devx/jev-classification-benchmark">jev-classification-benchmark</a>: classificação e re-ranking RAG. Independente, reproduzível.</li>
+    <li id="f25">TypeSafe AI Docs, <a href="https://docs.typesafe.ai/model-jaggedness/jev-1.13">Jev 1.13 jaggedness</a>. Vendor.</li>
+    <li id="f26">TypeSafe AI Docs, <a href="https://docs.typesafe.ai/concepts/how-to-build-with-system-one">How to build with TypeSafe</a> e <a href="https://docs.typesafe.ai/concepts/use-case-map">Example use cases</a>. Vendor.</li>
+    <li id="f27">TypeSafe AI Docs, <a href="https://docs.typesafe.ai/patterns/fan-out">Speculative fan-out</a> e <a href="https://docs.typesafe.ai/demos/smart-home">Smart home demo</a>. Vendor.</li>
+    <li id="f28">TypeSafe AI Cookbooks, <a href="https://docs.typesafe.ai/cookbooks/llm_guardrails">Guardrails for LLMs</a>. Vendor.</li>
+  </ol>
+  <p style="margin-top:20px">Leitura adicional: <a href="https://www.latent.space/p/ainews-jev-a-system-one-model-that">Latent Space AINews</a> · <a href="https://www.explainx.ai/blog/where-jev-actually-fails-2026">explainx.ai, Jev's Real Limitations</a> · <a href="https://www.forbes.com/sites/josipamajic/2026/09/19/jev-cuts-ai-decision-costs-100x-and-vercel-cloudflare-rushed-to-add-it/">Forbes</a>.</p>
+</section>
+
+<footer>
+  <p>Estudo compilado em 21 de setembro de 2026 a partir de fontes públicas. Não afiliado à TypeSafe AI. Os números do vendor estão marcados como tal; onde há medição independente, ela prevalece. Tudo que não está citado é análise própria.</p>
+</footer>
+
+</main>
+
+<script>
+(function () {
+  // Horizontal bar chart, "emphasis" form: highlighted rows in accent, others in de-emphasis gray.
+  // Thin marks, 4px rounded data-end, 2px gap, direct value labels, hover tooltip, table view.
+  function hbar(id, cfg) {
+    var host = document.getElementById(id);
+    if (!host) return;
+    var data = cfg.data, n = data.length;
+    var W = 520, rowH = 30, gap = 2, padL = cfg.padL || 150, padR = 78, padT = 6, padB = 6;
+    var H = padT + n * rowH + padB;
+    var max = Math.max.apply(null, data.map(function (d) { return d.value; }));
+    var plotW = W - padL - padR;
+    var fmt = cfg.format || function (v) { return String(v); };
+    var ticks = 4;
+
+    var s = '<div class="vt">' + cfg.title + '</div><div class="vs">' + cfg.subtitle + '</div>';
+    if (cfg.legend) s += '<div class="legend"><span class="a">' + cfg.legend[0] + '</span><span>' + cfg.legend[1] + '</span></div>';
+    s += '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + cfg.title + '">';
+    s += '<g class="grid">';
+    for (var t = 1; t <= ticks; t++) {
+      var gx = padL + plotW * t / ticks;
+      s += '<line x1="' + gx + '" y1="' + padT + '" x2="' + gx + '" y2="' + (H - padB) + '"/>';
+    }
+    s += '</g>';
+    s += '<line class="baseline" x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H - padB) + '"/>';
+    data.forEach(function (d, i) {
+      var y = padT + i * rowH + gap;
+      var h = rowH - gap * 2;
+      var w = Math.max(2, plotW * d.value / max);
+      var color = d.emph ? 'var(--accent)' : 'var(--deemph)';
+      var r = 4;
+      // rounded only on the data end (right)
+      var path = 'M' + padL + ',' + y + ' h' + Math.max(0, w - r) + ' a' + r + ',' + r + ' 0 0 1 ' + r + ',' + r +
+                 ' v' + (h - 2 * r) + ' a' + r + ',' + r + ' 0 0 1 -' + r + ',' + r + ' h-' + Math.max(0, w - r) + ' z';
+      s += '<g class="row" tabindex="0" data-i="' + i + '">';
+      s += '<rect x="0" y="' + (y - gap) + '" width="' + W + '" height="' + rowH + '" fill="transparent"/>';
+      s += '<text class="lbl" x="' + (padL - 10) + '" y="' + (y + h / 2 + 4) + '" text-anchor="end">' + d.label + '</text>';
+      s += '<path class="bar" d="' + path + '" fill="' + color + '"/>';
+      s += '<text class="val" x="' + (padL + w + 8) + '" y="' + (y + h / 2 + 4) + '">' + fmt(d.value) + '</text>';
+      s += '</g>';
+    });
+    s += '</svg>';
+    if (cfg.foot) s += '<div class="foot">' + cfg.foot + '</div>';
+    s += '<details><summary>Ver como tabela</summary><table><thead><tr><th>' + (cfg.rowHead || 'Modelo') + '</th><th class="num">' + cfg.unit + '</th></tr></thead><tbody>';
+    data.forEach(function (d) { s += '<tr><td>' + d.label + '</td><td class="num">' + fmt(d.value) + '</td></tr>'; });
+    s += '</tbody></table></details>';
+    s += '<div class="tip" role="tooltip"></div>';
+    host.innerHTML = s;
+
+    var tip = host.querySelector('.tip');
+    function show(i, ev) {
+      var d = data[i];
+      tip.textContent = d.label + ': ' + fmt(d.value) + (d.note ? ' · ' + d.note : '');
+      tip.style.display = 'block';
+      var rect = host.getBoundingClientRect();
+      var x = (ev && ev.clientX ? ev.clientX - rect.left : rect.width / 2) + 12;
+      var y = (ev && ev.clientY ? ev.clientY - rect.top : 40) - 10;
+      if (x + tip.offsetWidth > rect.width - 8) x = rect.width - tip.offsetWidth - 8;
+      tip.style.left = x + 'px'; tip.style.top = y + 'px';
+    }
+    host.querySelectorAll('.row').forEach(function (row) {
+      var i = +row.getAttribute('data-i');
+      row.addEventListener('mousemove', function (e) { show(i, e); });
+      row.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+      row.addEventListener('focus', function (e) { show(i, e); });
+      row.addEventListener('blur', function () { tip.style.display = 'none'; });
+    });
+  }
+
+  var usd = function (v) { return '$' + v.toFixed(4); };
+  var sec = function (v) { return v.toFixed(v < 1 ? 2 : 1) + ' s'; };
+  var pct = function (v) { return v.toFixed(1) + '%'; };
+
+  hbar('c-lat', {
+    title: 'Latência por caso', subtitle: 'Benchmark TypeSafe, 4 workflows · segundos, menor é melhor', unit: 'Segundos', padL: 120,
+    format: sec,
+    data: [
+      { label: 'Jev 1.13', value: 0.4, emph: true },
+      { label: 'GPT-5.6 Terra', value: 10.1 },
+      { label: 'GPT-5.6 Sol', value: 23.3 },
+      { label: 'Opus 5', value: 37.8 }
+    ],
+    foot: 'Fonte: TypeSafe AI (vendor), via DataCamp.'
+  });
+  hbar('c-cost', {
+    title: 'Custo por caso', subtitle: 'Benchmark TypeSafe, 4 workflows · US$, menor é melhor', unit: 'US$ por caso', padL: 120,
+    format: usd,
+    data: [
+      { label: 'Jev 1.13', value: 0.0004, emph: true },
+      { label: 'GPT-5.6 Terra', value: 0.0304 },
+      { label: 'GPT-5.6 Sol', value: 0.0836 },
+      { label: 'Opus 5', value: 0.1761 }
+    ],
+    foot: 'A barra do Jev tem largura mínima de 2 px; o valor real é 440x menor que o Opus 5.'
+  });
+  hbar('c-acc', {
+    title: 'Acurácia', subtitle: 'Benchmark TypeSafe, 4 workflows · % de casos corretos', unit: 'Acurácia', padL: 120,
+    format: pct,
+    data: [
+      { label: 'Jev 1.13', value: 67.8, emph: true },
+      { label: 'GPT-5.6 Terra', value: 67.9 },
+      { label: 'GPT-5.6 Sol', value: 74.1 },
+      { label: 'Opus 5', value: 73.1 }
+    ],
+    foot: 'Jev empata com Terra e perde 5–6 pontos para Sol e Opus 5.'
+  });
+
+  hbar('c-nearhere', {
+    title: 'Near Here: moderação de listagens de eventos', subtitle: 'Independente · 50 decisões reais · % correto', unit: 'Acurácia', padL: 170,
+    format: function (v) { return v + '%'; },
+    data: [
+      { label: 'Jev', value: 96, emph: true, note: '48 de 50 · 0,59 s · $0,043 por mil' },
+      { label: 'Gemini 3.5 Flash-Lite', value: 86 },
+      { label: 'Mistral Small 4', value: 84 }
+    ],
+    foot: 'Fonte: Near Here (blog da empresa).'
+  });
+  hbar('c-routing', {
+    title: 'Classmethod: latência do classificador de roteamento', subtitle: 'Independente · 4 tiers do NeMo Switchyard · mediana em segundos', unit: 'Segundos', padL: 170,
+    format: sec,
+    data: [
+      { label: 'Jev', value: 0.66, emph: true, note: '40 de 40 corretos · $0,000025 por chamada' },
+      { label: 'Gemini 3.5 Flash', value: 2.1 },
+      { label: 'DeepSeek V4 Flash', value: 7.2 }
+    ],
+    foot: 'Fonte: Classmethod DevelopersIO. 40 chamadas, uma amostra representativa por tier.'
+  });
+  hbar('c-phish', {
+    title: 'Phishing: o efeito da decomposição', subtitle: 'Independente · 2.000 e-mails sintéticos · % correto no conjunto de teste', unit: 'Acurácia', padL: 300,
+    format: pct,
+    legend: ['Jev', 'Claude Haiku'],
+    data: [
+      { label: 'Jev · pergunta única "é phishing?"', value: 62.6, emph: true },
+      { label: 'Haiku · pergunta única "é phishing?"', value: 81.3 },
+      { label: 'Haiku · melhor sinal isolado', value: 94.2, note: 'bateu o próprio composto de 5 perguntas' },
+      { label: 'Jev · 5 sinais + regressão logística', value: 95.0, emph: true, note: '$0,038 por mil e-mails vs $1,02 do Haiku' }
+    ],
+    foot: 'Fonte: jev-phishing-bench, via THE D*AI*LY BRIEF. Treino em 1.000 e-mails, teste em 1.000.'
+  });
+})();
+</script>
+</body>
+</html>
